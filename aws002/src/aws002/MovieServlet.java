@@ -35,19 +35,50 @@ public class MovieServlet extends HttpServlet {
 
 		String uri = req.getRequestURI();
 
-		String[] uricompoment = uri.split("/");
+		String[] uricomponent = uri.split("/");
 
-		if (uricompoment.length > 2) {
+		if (uricomponent.length > 2) {
 			// Rama para GET unico
 
-			String t = uricompoment[2];
+			String tituloPelicula = uricomponent[2];
 
-			if (Movies.containsName(peliculas, t)) {
-				Gson gson2 = new Gson();
-				String jsonString2 = gson2.toJson(Movies.getName(peliculas, t));
-
-				resp.setContentType("text/json");
-				resp.getWriter().println(jsonString2);
+			if (Movies.containsName(peliculas, tituloPelicula)) {
+				if (uricomponent.length > 3)
+				{
+					Movie pelicula = Movies.getMovie(peliculas, tituloPelicula);
+					if (uricomponent.length > 4)
+					{
+						String nombreActor = uricomponent[4];
+						if (Actores.containsName(pelicula.getActores(), nombreActor))
+						{
+							Actor actor = Actores.getActor(pelicula.getActores(), nombreActor);
+							
+							Gson gson = new Gson();
+							String jsonString = gson.toJson(actor);
+							resp.setContentType("text/json");
+							resp.getWriter().println(jsonString);
+						}
+						else
+							resp.sendError(404);
+					}
+					else if (uricomponent[3].equals("actores"))
+					{	
+						Gson gson = new Gson();
+						String jsonString = gson.toJson(pelicula.getActores());
+						resp.setContentType("text/json");
+						resp.getWriter().println(jsonString);
+					}
+					else
+						resp.sendError(404);
+				}
+				else
+				{
+					Gson gson = new Gson();
+					String jsonString2 = gson.toJson(Movies.getMovie(peliculas, tituloPelicula));
+	
+					resp.setContentType("text/json");
+					resp.getWriter().println(jsonString2);
+				}
 
 			} else {
 				// No existe recurso
@@ -73,15 +104,9 @@ public class MovieServlet extends HttpServlet {
 		String uri = req.getRequestURI();
 
 		String[] uricompoment = uri.split("/");
-
-		if (uricompoment.length > 2) {
-			// Rama para POST unico
-			
-			//Accion prohibida
-			resp.sendError(403);
-
-		} else {
-
+		
+		if (uricompoment.length == 2)
+		{
 			Movie m = null;
 			Gson gson = new Gson();
 			StringBuilder sb = new StringBuilder();
@@ -110,16 +135,55 @@ public class MovieServlet extends HttpServlet {
 				peliculas.add(m);
 				Persistencia.insertMovie(m);
 				
-				
-
-				// Que debe devolver en este caso el service ¿?¿?
+				//Que debe devolver en este caso el service ¿?¿?
 				//Devuelve otro json, que debria de devolver ???? 
 				resp.setContentType("text/json");
 				resp.getWriter().println(jsonString);
 			}
-			
-			
 		}
+		else if (uricompoment.length == 4 &&
+				Movies.containsName(peliculas, uricompoment[2]) &&
+				uricompoment[3].equals("actores"))
+		{
+			Actor a = null;
+			Gson gson = new Gson();
+			StringBuilder sb = new StringBuilder();
+			BufferedReader br = req.getReader();
+			String jsonString;
+			while ((jsonString = br.readLine()) != null) {
+				sb.append(jsonString);
+			}
+
+			jsonString = sb.toString();
+
+			try {
+				a = gson.fromJson(jsonString, Actor.class);
+			} catch (Exception e) {
+				System.out.println("ERROR parsing Actor: " + e.getMessage());
+			}
+			
+			Movie pelicula = Movies.getMovie(peliculas, uricompoment[2]);
+			
+			// Comprobar que no existe previamente el actor
+			if(Actores.containsName(pelicula.getActores(), a.getNombreCompleto())){
+				
+				//No modificado 304
+				resp.sendError(304);
+
+			}else{
+				
+				pelicula.addActor(a);
+				Persistencia.insertActor(pelicula.getTitulo(), a);
+				
+				//Que debe devolver en este caso el service ¿?¿?
+				//Devuelve otro json, que debria de devolver ???? 
+				resp.setContentType("text/json");
+				resp.getWriter().println(jsonString);
+			}
+		}
+		else
+			//Accion prohibida
+			resp.sendError(403);	
 	}
 
 	
@@ -141,10 +205,10 @@ public class MovieServlet extends HttpServlet {
 			if (Movies.containsName(peliculas, t)) {
 
 				Gson gson2 = new Gson();
-				String jsonString2 = gson2.toJson(Movies.getName(peliculas, t));
+				String jsonString2 = gson2.toJson(Movies.getMovie(peliculas, t));
 
-				peliculas.remove(Movies.getName(peliculas, t));
-				Persistencia.deleteMovie(Movies.getName(peliculas,t).getTitulo());
+				peliculas.remove(Movies.getMovie(peliculas, t));
+				Persistencia.deleteMovie(Movies.getMovie(peliculas,t).getTitulo());
 				
 				//???Se devolveria
 				resp.setContentType("text/json");
@@ -203,7 +267,7 @@ public class MovieServlet extends HttpServlet {
 				}
 				
 				if(Movies.compareNameCamel(m, t)){
-					peliculas.remove(Movies.getName(peliculas, t));
+					peliculas.remove(Movies.getMovie(peliculas, t));
 					peliculas.add(m);
 					Persistencia.deleteMovie(t);
 					Persistencia.insertMovie(m);

@@ -29,6 +29,7 @@ public class Persistencia {
 		e.setProperty("director", m.getDirector());
 		e.setProperty("fecha", m.getFecha());
 		e.setProperty("duracion", m.getDuracion());
+		e.setProperty("actores", m.getActores());
 
 		datastore.put(e);	}
 
@@ -57,11 +58,14 @@ public class Persistencia {
 
 		Entity e = pq.asSingleEntity();
 
-		Movie m = new Movie((String) e.getProperty("titulo"),
-				(String) e.getProperty("director"),
-				(Integer) e.getProperty("fecha"),
-				(Integer) e.getProperty("duracion"));
-		return m;
+		if (e != null)
+			return new Movie((String) e.getProperty("titulo"),
+					(String) e.getProperty("director"),
+					(int) (long) e.getProperty("fecha"),
+					(int) (long) e.getProperty("duracion"),
+					(List<Actor>) e.getProperty("actores"));
+		else
+			return null;
 	}
 
 	// El string de entrada es el nombre completo
@@ -117,7 +121,8 @@ public class Persistencia {
 			Movie m = new Movie((String) e.getProperty("titulo"),
 					(String) e.getProperty("director"), new Integer(
 							(int) (long) e.getProperty("fecha")), new Integer(
-							(int) (long) e.getProperty("duracion")));
+							(int) (long) e.getProperty("duracion")),
+							(List<Actor>) e.getProperty("actores"));
 			movies.add(m);
 		}
 
@@ -142,6 +147,16 @@ public class Persistencia {
 
 		}
 
+	}
+	
+	public static void insertActor(String titulo, Actor a)
+	{
+		Movie pelicula = Persistencia.selectMovie(titulo);
+		
+		pelicula.addActor(a);
+		
+		Persistencia.deleteMovie(titulo);
+		Persistencia.insertMovie(pelicula);
 	}
 
 }
